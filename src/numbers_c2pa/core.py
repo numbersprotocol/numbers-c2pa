@@ -133,3 +133,23 @@ def inject_file(
             env=env_vars,
             check=True,
         )
+
+
+def read_c2pa(asset_c2pa_bytes: bytes, asset_mime_type: str):
+    file_ext = _mimetype_to_ext(asset_mime_type)
+    with TemporaryDirectory(prefix='temp_dir') as temp_dir:
+        asset_c2pa_file = os.path.join(temp_dir, f'asset-c2pa.{file_ext}')
+        with open(asset_c2pa_file, 'wb') as f:
+            f.write(asset_c2pa_bytes)
+
+        command = ['c2patool', asset_c2pa_file]
+        output = subprocess.check_output(command, text=True)
+        json_output = json.loads(output)
+        return json_output
+
+
+def read_c2pa_file(asset_c2pa_file: str):
+    command = ['c2patool', asset_c2pa_file]
+    output = subprocess.check_output(command, text=True)
+    json_output = json.loads(output)
+    return json_output
