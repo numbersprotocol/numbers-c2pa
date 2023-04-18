@@ -1,0 +1,35 @@
+{
+  "alg": "es256",
+  "private_key": "es256_private.key",
+  "sign_cert": "es256_certs.pem",
+  "ta_url": "http://timestamp.digicert.com",
+  "claim_generator": "Numbers_Protocol",
+  "title": "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku",
+  "assertions": [
+    {
+      "label": "stds.schema-org.CreativeWork",
+      "data": {
+        "@context": "https://schema.org",
+        "@type": "CreativeWork",
+        "author": [
+          {
+            "@type": "Person",
+            "name": "0x28E9955762c92F9fb681Ae0F55D28BDE6d093af6"
+          }
+        ],
+        "dateCreated": "2023-04-11T02:46:37Z",
+        "locationCreated": "12.3456, 23.4567",
+        "identifier": "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku"
+      }
+    },
+    {
+      "label": "numbers.integrity.json",
+      "data": {
+        "nid": "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku",
+        "publicKey": "0x074f14058Bd258a5fE9242A04eb8b557e0c226F7",
+        "mediaHash": "3b0a0389e803c9388288f3118585044f3faca62d3905a9cab74167ff44d632d6",
+        "captureTimestamp": "1681447761"
+      }
+    }
+  ]
+}
