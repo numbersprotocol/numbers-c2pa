@@ -3,8 +3,8 @@ import mimetypes
 import os
 import subprocess
 from datetime import datetime
-from tempfile import TemporaryDirectory
-from typing import Dict, Optional
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from typing import Any, Dict, Optional
 
 
 def _mimetype_to_ext(asset_mime_type: str):
@@ -105,26 +105,24 @@ def inject(
 
 def inject_file(
     asset_file: str,
-    manifest: Dict,
+    c2pa_output_file: str,
+    manifest: Dict[str, Any],
     private_key: Optional[str] = None,
     sign_cert: Optional[str] = None,
     force_overwrite: bool = True,
 ):
     """Perform C2PA injection given an existing asset file.
     """
-    with TemporaryDirectory(prefix='temp_dir') as temp_dir:
-        manifest_file = os.path.join(temp_dir, 'manifest.json')
-        with open(manifest_file, 'w') as f:
-            json.dump(manifest, f)
+    with NamedTemporaryFile(prefix='manifest_', mode='w') as manifest_temp_file:
+        json.dump(manifest, manifest_temp_file)
+        manifest_temp_file.flush()
 
-        # Create C2PA filename. The original filename should contain exactly one dot.
-        asset_c2pa_file = asset_file.split('.')[0] + '-c2pa.' + asset_file.split('.')[1]
         env_vars = os.environ.copy()
         if private_key:
             env_vars['C2PA_PRIVATE_KEY'] = private_key
         if sign_cert:
             env_vars['C2PA_SIGN_CERT'] = sign_cert
-        command = f'c2patool {asset_file} -m {manifest_file} -o {asset_c2pa_file}'
+        command = f'c2patool {asset_file} -m {manifest_temp_file} -o {c2pa_output_file}'
         if force_overwrite:
             command += ' -f'
         subprocess.run(
@@ -148,8 +146,8 @@ def read_c2pa(asset_c2pa_bytes: bytes, asset_mime_type: str):
         return json_output
 
 
-def read_c2pa_file(asset_c2pa_file: str):
-    command = ['c2patool', asset_c2pa_file]
+def read_c2pa_file(c2pa_file: str):
+    command = ['c2patool', c2pa_file]
     output = subprocess.check_output(command, text=True)
     json_output = json.loads(output)
     return json_output
