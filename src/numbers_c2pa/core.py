@@ -122,7 +122,7 @@ def inject_file(
             env_vars['C2PA_PRIVATE_KEY'] = private_key
         if sign_cert:
             env_vars['C2PA_SIGN_CERT'] = sign_cert
-        command = f'c2patool {asset_file} -m {manifest_temp_file} -o {c2pa_output_file}'
+        command = f'c2patool {asset_file} -m {manifest_temp_file.name} -o {c2pa_output_file}'
         if force_overwrite:
             command += ' -f'
         subprocess.run(
