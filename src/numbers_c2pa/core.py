@@ -6,6 +6,8 @@ from datetime import datetime
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict, Optional
 
+from .exceptions import NoClaimFound, UnknownError
+
 
 def _mimetype_to_ext(asset_mime_type: str):
     ext = mimetypes.guess_extension(asset_mime_type)
@@ -91,12 +93,16 @@ def inject(
         command = f'c2patool {asset_file} -m {manifest_file} -o {asset_c2pa_file}'
         if force_overwrite:
             command += ' -f'
-        subprocess.run(
-            command,
-            shell=True,
-            env=env_vars,
-            check=True,
-        )
+        try:
+            subprocess.run(
+                command,
+                shell=True,
+                env=env_vars,
+                check=True,
+                stderr=subprocess.PIPE,
+            )
+        except subprocess.CalledProcessError as e:
+            raise UnknownError(e.stderr)
 
         with open(asset_c2pa_file, 'rb') as f:
             asset_c2pa_bytes = f.read()
@@ -125,12 +131,16 @@ def inject_file(
         command = f'c2patool {asset_file} -m {manifest_temp_file.name} -o {c2pa_output_file}'
         if force_overwrite:
             command += ' -f'
-        subprocess.run(
-            command,
-            shell=True,
-            env=env_vars,
-            check=True,
-        )
+        try:
+            subprocess.run(
+                command,
+                shell=True,
+                env=env_vars,
+                check=True,
+                stderr=subprocess.PIPE,
+            )
+        except subprocess.CalledProcessError as e:
+            raise UnknownError(e.stderr)
 
 
 def read_c2pa(asset_c2pa_bytes: bytes, asset_mime_type: str):
@@ -140,14 +150,26 @@ def read_c2pa(asset_c2pa_bytes: bytes, asset_mime_type: str):
         with open(asset_c2pa_file, 'wb') as f:
             f.write(asset_c2pa_bytes)
 
-        command = ['c2patool', asset_c2pa_file]
-        output = subprocess.check_output(command, text=True)
-        json_output = json.loads(output)
-        return json_output
+        try:
+            command = ['c2patool', asset_c2pa_file]
+            output = subprocess.check_output(command, text=True, stderr=subprocess.PIPE)
+            json_output = json.loads(output)
+            return json_output
+        except subprocess.CalledProcessError as e:
+            if 'No claim found' in e.stderr:
+                raise NoClaimFound
+            else:
+                raise UnknownError(e.stderr)
 
 
 def read_c2pa_file(c2pa_file: str):
     command = ['c2patool', c2pa_file]
-    output = subprocess.check_output(command, text=True)
-    json_output = json.loads(output)
-    return json_output
+    try:
+        output = subprocess.check_output(command, text=True, stderr=subprocess.PIPE)
+        json_output = json.loads(output)
+        return json_output
+    except subprocess.CalledProcessError as e:
+        if 'No claim found' in e.stderr:
+            raise NoClaimFound
+        else:
+            raise UnknownError(e.stderr)
