@@ -150,26 +150,26 @@ def read_c2pa(asset_c2pa_bytes: bytes, asset_mime_type: str):
         with open(asset_c2pa_file, 'wb') as f:
             f.write(asset_c2pa_bytes)
 
-        try:
-            command = ['c2patool', asset_c2pa_file]
-            output = subprocess.check_output(command, text=True, stderr=subprocess.PIPE)
-            json_output = json.loads(output)
-            return json_output
-        except subprocess.CalledProcessError as e:
-            if 'No claim found' in e.stderr:
+        command = ['c2patool', asset_c2pa_file]
+        process = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        if process.returncode != 0:
+            if 'No claim found' in process.stderr:
                 raise NoClaimFound
             else:
-                raise UnknownError(e.stderr)
+                raise UnknownError(process.stderr)
+
+        json_output = json.loads(process.stdout)
+        return json_output
 
 
 def read_c2pa_file(c2pa_file: str):
     command = ['c2patool', c2pa_file]
-    try:
-        output = subprocess.check_output(command, text=True, stderr=subprocess.PIPE)
-        json_output = json.loads(output)
-        return json_output
-    except subprocess.CalledProcessError as e:
-        if 'No claim found' in e.stderr:
+    process = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if process.returncode != 0:
+        if 'No claim found' in process.stderr:
             raise NoClaimFound
         else:
-            raise UnknownError(e.stderr)
+            raise UnknownError(process.stderr)
+
+    json_output = json.loads(process.stdout)
+    return json_output
