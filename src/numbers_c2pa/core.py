@@ -4,7 +4,7 @@ import os
 import subprocess
 from datetime import datetime
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from .exceptions import NoClaimFound, UnknownError
 
@@ -25,12 +25,14 @@ def create_c2pa_manifest(
     date_captured: Optional[datetime],
     alg: str = 'es256',
     ta_url: str = 'http://timestamp.digicert.com',
+    vendor: str = 'numbersprotocol',
     claim_generator: str = 'Numbers_Protocol',
 ):
     captureTimestamp = date_captured.timestamp() if date_captured else None
     manifest = {
         'alg': alg,
         'ta_url': ta_url,
+        'vendor': vendor,
         'claim_generator': claim_generator,
         'title': nid,
         'assertions': [
@@ -61,6 +63,59 @@ def create_c2pa_manifest(
             }
         ]
     }
+    return manifest
+
+
+def create_custom_c2pa_manifest(
+    alg: str = 'es256',
+    ta_url: str = 'http://timestamp.digicert.com',
+    vendor: str = 'numbersprotocol',
+    claim_generator: str = 'Numbers_Protocol',
+    title: Optional[str] = None,
+    author_type: str = 'Person',
+    author_credential: Optional[List] = None,
+    author_identifier: Optional[str] = None,
+    author_name: Optional[str] = None,
+    c2pa_actions: Optional[List] = None,
+    custom_assertions: Optional[List] = None,
+):
+    manifest = {
+        'alg': alg,
+        'ta_url': ta_url,
+        'vendor': vendor,
+        'claim_generator': claim_generator,
+        'title': title,
+        'assertions': [
+            {
+                'label': 'stds.schema-org.CreativeWork',
+                'data': {
+                    '@context': 'https://schema.org',
+                    '@type': 'CreativeWork',
+                    'author': [
+                        {
+                            '@type': author_type,
+                            'credential': author_credential or [],
+                            'identifier': author_identifier,
+                            'name': author_name,
+                        }
+                    ],
+                }
+            },
+        ]
+    }
+    manifest = {k: v for k, v in manifest.items() if v is not None}
+    if c2pa_actions:
+        manifest['assertions'].append(
+            {
+                'label': 'c2pa.actions',
+                'data':
+                {
+                    'actions': c2pa_actions,
+                }
+            }
+        )
+    if custom_assertions:
+        manifest['assertions'] += custom_assertions
     return manifest
 
 

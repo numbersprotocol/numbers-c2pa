@@ -1,5 +1,5 @@
 import datetime
-from typing import BinaryIO, Optional
+from typing import Optional
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -38,8 +38,8 @@ def create_self_signed_certificate(private_key_pem, output_file='es256_certs.pem
 
     subject = x509.Name([
         x509.NameAttribute(NameOID.COUNTRY_NAME, 'US'),
-        #x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"California"),
-        #x509.NameAttribute(NameOID.LOCALITY_NAME, u"San Francisco"),
+        # x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"California"),
+        # x509.NameAttribute(NameOID.LOCALITY_NAME, u"San Francisco"),
         x509.NameAttribute(NameOID.ORGANIZATION_NAME, 'Numbers Protocol'),
         x509.NameAttribute(NameOID.COMMON_NAME, 'numbersprotocol.io'),
     ])
