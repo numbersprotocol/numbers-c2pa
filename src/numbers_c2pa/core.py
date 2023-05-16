@@ -16,6 +16,34 @@ def _mimetype_to_ext(asset_mime_type: str):
     return ext
 
 
+def c2patool_inject(
+    file_path: str,
+    manifest_path: str,
+    output_path: str,
+    force_overwrite: bool,
+    private_key: Optional[str] = None,
+    sign_cert: Optional[str] = None,
+):
+    env_vars = os.environ.copy()
+    if private_key:
+        env_vars['C2PA_PRIVATE_KEY'] = private_key
+    if sign_cert:
+        env_vars['C2PA_SIGN_CERT'] = sign_cert
+    command = f'c2patool "{file_path}" -m "{manifest_path}" -o "{output_path}"'
+    if force_overwrite:
+        command += ' -f'
+    try:
+        subprocess.run(
+            command,
+            shell=True,
+            env=env_vars,
+            check=True,
+            stderr=subprocess.PIPE,
+        )
+    except subprocess.CalledProcessError as e:
+        raise UnknownError(e.stderr)
+
+
 def create_c2pa_manifest(
     nid: str,
     creator_public_key: str,
@@ -140,24 +168,14 @@ def inject(
             f.write(asset_bytes)
 
         asset_c2pa_file = os.path.join(temp_dir, f'asset-c2pa.{file_ext}')
-        env_vars = os.environ.copy()
-        if private_key:
-            env_vars['C2PA_PRIVATE_KEY'] = private_key
-        if sign_cert:
-            env_vars['C2PA_SIGN_CERT'] = sign_cert
-        command = f'c2patool {asset_file} -m {manifest_file} -o {asset_c2pa_file}'
-        if force_overwrite:
-            command += ' -f'
-        try:
-            subprocess.run(
-                command,
-                shell=True,
-                env=env_vars,
-                check=True,
-                stderr=subprocess.PIPE,
-            )
-        except subprocess.CalledProcessError as e:
-            raise UnknownError(e.stderr)
+        c2patool_inject(
+            asset_file,
+            manifest_file,
+            asset_c2pa_file,
+            force_overwrite=force_overwrite,
+            private_key=private_key,
+            sign_cert=sign_cert,
+        )
 
         with open(asset_c2pa_file, 'rb') as f:
             asset_c2pa_bytes = f.read()
@@ -178,24 +196,14 @@ def inject_file(
         json.dump(manifest, manifest_temp_file)
         manifest_temp_file.flush()
 
-        env_vars = os.environ.copy()
-        if private_key:
-            env_vars['C2PA_PRIVATE_KEY'] = private_key
-        if sign_cert:
-            env_vars['C2PA_SIGN_CERT'] = sign_cert
-        command = f'c2patool {asset_file} -m {manifest_temp_file.name} -o {c2pa_output_file}'
-        if force_overwrite:
-            command += ' -f'
-        try:
-            subprocess.run(
-                command,
-                shell=True,
-                env=env_vars,
-                check=True,
-                stderr=subprocess.PIPE,
-            )
-        except subprocess.CalledProcessError as e:
-            raise UnknownError(e.stderr)
+        c2patool_inject(
+            asset_file,
+            manifest_temp_file.name,
+            c2pa_output_file,
+            force_overwrite=force_overwrite,
+            private_key=private_key,
+            sign_cert=sign_cert,
+        )
 
 
 def read_c2pa(asset_c2pa_bytes: bytes, asset_mime_type: str):
