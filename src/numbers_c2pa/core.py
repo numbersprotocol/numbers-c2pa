@@ -3,7 +3,7 @@ import mimetypes
 import os
 import subprocess
 from datetime import datetime
-from tempfile import NamedTemporaryFile, TemporaryDirectory
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional
 
 import requests

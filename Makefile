@@ -27,11 +27,11 @@ $(VENV_DIR)/bin/$(SPHINXBUILD): $(VENV_PYTHON)
 
 .PHONY: lint
 lint: $(VENV_DIR)/bin/tox
-	$(VENV_DIR)/bin/tox -e flake8,pylint,bandit
+	$(VENV_DIR)/bin/tox -c setup.cfg -e flake8,pylint,bandit
 
 .PHONY: test
 test: $(VENV_DIR)/bin/tox
-	$(VENV_DIR)/bin/tox -e pytest,report
+	$(VENV_DIR)/bin/tox -c setup.cfg -e test
 
 .PHONY: docs
 docs: $(VENV_DIR)/bin/$(SPHINXBUILD)
