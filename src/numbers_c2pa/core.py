@@ -29,7 +29,8 @@ def c2patool_inject(
         env_vars['C2PA_PRIVATE_KEY'] = private_key
     if sign_cert:
         env_vars['C2PA_SIGN_CERT'] = sign_cert
-    command = f'c2patool "{file_path}" -m "{manifest_path}" -o "{output_path}"'
+    command = f"c2patool '{file_path}' -m '{manifest_path}' -o '{output_path}'"
+
     if force_overwrite:
         command += ' -f'
     try:
@@ -55,6 +56,8 @@ def create_c2pa_manifest(
     ta_url: str = 'http://timestamp.digicert.com',
     vendor: str = 'numbersprotocol',
     claim_generator: str = 'Numbers_Protocol',
+    digital_source_type: Optional[str] = None,
+    generated_by: Optional[str] = None,
 ):
     captureTimestamp = date_captured.timestamp() if date_captured else None
     manifest = {
@@ -81,6 +84,16 @@ def create_c2pa_manifest(
                 }
             },
             {
+                'label': 'c2pa.actions',
+                'data': {
+                    'actions': [
+                        {
+                            'action': 'c2pa.opened',
+                        }
+                    ],
+                }
+            },
+            {
                 'label': 'numbers.integrity.json',
                 'data': {
                     'nid': nid,
@@ -91,6 +104,14 @@ def create_c2pa_manifest(
             }
         ]
     }
+    if digital_source_type:
+        manifest['assertions'][1]['data']['actions'][0].update({
+            'digitalSourceType': f'http://cv.iptc.org/newscodes/digitalsourcetype/{digital_source_type}',
+        })
+    if generated_by:
+        manifest['assertions'][1]['data']['actions'][0].update({
+            'softwareAgent': f'{generated_by}'
+        })
     return manifest
 
 
