@@ -6,6 +6,8 @@ from datetime import datetime
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict, List, Optional
 
+import requests
+
 from .exceptions import NoClaimFound, UnknownError
 
 
@@ -210,16 +212,33 @@ def inject_file(
     private_key: Optional[str] = None,
     sign_cert: Optional[str] = None,
     force_overwrite: bool = True,
+    thumbnail_url: Optional[str] = None,
 ):
     """Perform C2PA injection given an existing asset file.
     """
-    with NamedTemporaryFile(prefix='manifest_', mode='w') as manifest_temp_file:
-        json.dump(manifest, manifest_temp_file)
-        manifest_temp_file.flush()
+    with TemporaryDirectory() as temp_dir:
+        if thumbnail_url:
+            thumbnail_file_path = os.path.join(temp_dir, 'thumbnail.jpg')
+            response = requests.get(thumbnail_url, stream=True)
+            response.raise_for_status()
+            with open(thumbnail_file_path, 'wb') as thumbnail_file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    thumbnail_file.write(chunk)
+                thumbnail_file.flush()
+            manifest['thumbnail'] = {
+                'format': 'image/jpeg',
+                'identifier': thumbnail_file_path,
+            }
+
+        # Save the manifest to a temporary file
+        manifest_file_path = os.path.join(temp_dir, 'manifest.json')
+        with open(manifest_file_path, 'w') as manifest_file:
+            json.dump(manifest, manifest_file)
+            manifest_file.flush()
 
         c2patool_inject(
             asset_file,
-            manifest_temp_file.name,
+            manifest_file.name,
             c2pa_output_file,
             force_overwrite=force_overwrite,
             private_key=private_key,
