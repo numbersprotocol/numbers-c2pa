@@ -53,7 +53,7 @@ def create_self_signed_certificate(private_key_pem, output_file='es256_certs.pem
         .not_valid_before(datetime.datetime.utcnow())
         .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=365))
         .add_extension(
-            x509.SubjectAlternativeName([x509.DNSName(u"my-organization.com")]),
+            x509.SubjectAlternativeName([x509.DNSName('my-organization.com')]),
             critical=False,
         )
         .add_extension(

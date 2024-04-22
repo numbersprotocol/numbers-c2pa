@@ -1,7 +1,7 @@
 import json
 import mimetypes
 import os
-import subprocess
+import subprocess  # nosec
 from datetime import datetime
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional
@@ -42,9 +42,9 @@ def c2patool_inject(
             env=env_vars,
             check=True,
             stderr=subprocess.PIPE,
-        )
+        )  # nosec
     except subprocess.CalledProcessError as e:
-        raise UnknownError(e.stderr)
+        raise UnknownError(e.stderr) from e
 
 
 def create_c2pa_manifest(
@@ -219,7 +219,7 @@ def inject_file(
     with TemporaryDirectory() as temp_dir:
         if thumbnail_url:
             thumbnail_file_path = os.path.join(temp_dir, 'thumbnail.jpg')
-            response = requests.get(thumbnail_url, stream=True)
+            response = requests.get(thumbnail_url, stream=True, timeout=120)
             response.raise_for_status()
             with open(thumbnail_file_path, 'wb') as thumbnail_file:
                 for chunk in response.iter_content(chunk_size=8192):
@@ -232,7 +232,7 @@ def inject_file(
 
         # Save the manifest to a temporary file
         manifest_file_path = os.path.join(temp_dir, 'manifest.json')
-        with open(manifest_file_path, 'w') as manifest_file:
+        with open(manifest_file_path, 'w',) as manifest_file:
             json.dump(manifest, manifest_file)
             manifest_file.flush()
 
@@ -254,12 +254,13 @@ def read_c2pa(asset_c2pa_bytes: bytes, asset_mime_type: str):
             f.write(asset_c2pa_bytes)
 
         command = ['c2patool', asset_c2pa_file]
-        process = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        process = subprocess.run(
+            command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
+        )  # nosec
         if process.returncode != 0:
             if 'No claim found' in process.stderr:
                 raise NoClaimFound
-            else:
-                raise UnknownError(process.stderr)
+            raise UnknownError(process.stderr)
 
         json_output = json.loads(process.stdout)
         return json_output
@@ -267,12 +268,11 @@ def read_c2pa(asset_c2pa_bytes: bytes, asset_mime_type: str):
 
 def read_c2pa_file(c2pa_file: str):
     command = ['c2patool', c2pa_file]
-    process = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    process = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)  # nosec
     if process.returncode != 0:
         if 'No claim found' in process.stderr:
             raise NoClaimFound
-        else:
-            raise UnknownError(process.stderr)
+        raise UnknownError(process.stderr)
 
     json_output = json.loads(process.stdout)
     return json_output
