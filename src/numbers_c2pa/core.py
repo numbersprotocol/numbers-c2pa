@@ -3,8 +3,9 @@ import mimetypes
 import os
 import subprocess  # nosec
 from datetime import datetime
+from decimal import Decimal
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import requests
 
@@ -16,6 +17,18 @@ def _mimetype_to_ext(asset_mime_type: str):
     if not ext:
         raise ValueError(f'Could not find a file extension for MIME type: {asset_mime_type}')
     return ext
+
+
+def format_datetime(date: Optional[datetime], to_timestamp=False) -> Optional[Union[str, int]]:
+    if not date:
+        return None
+    if to_timestamp:
+        return int(date.timestamp())
+    return date.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def format_geolocation(value: Optional[str]) -> Optional[str]:
+    return f'{Decimal(value):.12f}' if value else None
 
 
 def c2patool_inject(
@@ -52,16 +65,24 @@ def create_c2pa_manifest(
     creator_public_key: str,
     asset_hash: str,
     date_created: datetime,
-    location_created: str,
-    date_captured: Optional[datetime],
+    latitude: Optional[str] = None,
+    longitude: Optional[str] = None,
+    date_captured: Optional[datetime] = None,
     alg: str = 'es256',
     ta_url: str = 'http://timestamp.digicert.com',
     vendor: str = 'numbersprotocol',
     claim_generator: str = 'Numbers_Protocol',
     digital_source_type: Optional[str] = None,
     generated_by: Optional[str] = None,
+    asset_tree_cid: Optional[str] = None,
+    asset_tree_sha256: Optional[str] = None,
+    asset_tree_signature: Optional[str] = None,
+    committer: Optional[str] = None,
 ):
-    captureTimestamp = date_captured.timestamp() if date_captured else None
+    location_created = (
+        f'{format_geolocation(latitude)}, {format_geolocation(longitude)}'
+        if latitude and longitude else None
+    )
     manifest = {
         'alg': alg,
         'ta_url': ta_url,
@@ -74,6 +95,7 @@ def create_c2pa_manifest(
                 'data': {
                     '@context': 'https://schema.org',
                     '@type': 'CreativeWork',
+                    'url': f'https://verify.numbersprotocol.io/asset-profile/{nid}',
                     'author': [
                         {
                             '@type': 'Person',
@@ -96,14 +118,41 @@ def create_c2pa_manifest(
                 }
             },
             {
+                'label': 'numbers.assetTree',
+                'data': {
+                    'assetTreeCid': asset_tree_cid,
+                    'assetTreeSha256': asset_tree_sha256,
+                    'assetTreeSignature': asset_tree_signature,
+                    'committer': committer,
+                }
+            },
+            {
                 'label': 'numbers.integrity.json',
                 'data': {
                     'nid': nid,
                     'publicKey': creator_public_key,
                     'mediaHash': asset_hash,
-                    'captureTimestamp': captureTimestamp,
+                    'captureTimestamp': format_datetime(date_captured, to_timestamp=True),
                 }
-            }
+            },
+            {
+                'label': 'stds.exif',
+                'data': {
+                    '@context': {
+                        'EXIF': 'http://ns.adobe.com/EXIF/1.0/',
+                        'EXIFEX': 'http://cipa.jp/EXIF/2.32/',
+                        'dc': 'http://purl.org/dc/elements/1.1/',
+                        'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+                        'tiff': 'http://ns.adobe.com/tiff/1.0/',
+                        'xmp': 'http://ns.adobe.com/xap/1.0/'
+                    },
+                    'EXIF:GPSLatitude': format_geolocation(latitude),
+                    'EXIF:GPSLongitude': format_geolocation(longitude),
+                    "EXIF:GPSTimeStamp": format_datetime(date_captured),
+                    'EXIF:DateTimeOriginal': format_datetime(date_captured),
+                },
+                'kind': 'Json'
+            },
         ]
     }
     if digital_source_type:
