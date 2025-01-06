@@ -50,6 +50,7 @@ def c2patool_inject(
     manifest_path: str,
     output_path: str,
     force_overwrite: bool,
+    *,
     parent_path: Optional[str] = None,
     private_key: Optional[str] = None,
     sign_cert: Optional[str] = None,
@@ -132,6 +133,7 @@ def create_c2pa_manifest(
     creator_name: str,
     creator_public_key: str,
     asset_hash: str,
+    *,
     date_created: Optional[datetime] = None,
     latitude: Optional[str] = None,
     longitude: Optional[str] = None,
@@ -214,6 +216,7 @@ def create_c2pa_manifest(
 
 
 def create_custom_c2pa_manifest(
+    *,
     alg: str = 'es256',
     ta_url: str = 'http://timestamp.digicert.com',
     vendor: str = 'numbersprotocol',
@@ -300,6 +303,7 @@ def inject(
     asset_bytes: bytes,
     asset_mime_type: str,
     manifest: Dict,
+    *,
     private_key: Optional[str] = None,
     sign_cert: Optional[str] = None,
     force_overwrite: bool = True,
@@ -335,6 +339,7 @@ def inject_file(
     asset_file: str,
     c2pa_output_file: str,
     manifest: Dict[str, Any],
+    *,
     parent_path: Optional[str] = None,
     private_key: Optional[str] = None,
     sign_cert: Optional[str] = None,
