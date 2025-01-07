@@ -45,7 +45,9 @@ if __name__ == '__main__':
     )
     inject_file(
         'examples/numbers.png',
+        'examples/numbers-c2pa.png',
         manifest=manifest,
+        parent_path='examples/numbers.png',
         private_key=private_key,
         sign_cert=sign_cert,
     )

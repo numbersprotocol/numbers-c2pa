@@ -1,3 +1,5 @@
+import base64
+import binascii
 import json
 import mimetypes
 import os
@@ -19,6 +21,18 @@ def _mimetype_to_ext(asset_mime_type: str):
     return ext
 
 
+def format_claim_generator(name: str) -> str:
+    """
+    Claim generator must be underscore-separated Pascal case
+    ex. Numbers_Protocol
+    """
+    # Split the name into words based on spaces or other delimiters
+    words = name.replace('-', ' ').replace('_', ' ').split()
+
+    # Capitalize each word and join with underscores
+    return '_'.join(word.capitalize() for word in words)
+
+
 def format_datetime(date: Optional[datetime], to_timestamp=False) -> Optional[Union[str, int]]:
     if not date:
         return None
@@ -36,6 +50,8 @@ def c2patool_inject(
     manifest_path: str,
     output_path: str,
     force_overwrite: bool,
+    *,
+    parent_path: Optional[str] = None,
     private_key: Optional[str] = None,
     sign_cert: Optional[str] = None,
 ):
@@ -46,6 +62,8 @@ def c2patool_inject(
         env_vars['C2PA_SIGN_CERT'] = sign_cert
     command = f"c2patool '{file_path}' -m '{manifest_path}' -o '{output_path}'"
 
+    if parent_path:
+        command += f" -p '{parent_path}'"
     if force_overwrite:
         command += ' -f'
     try:
@@ -60,18 +78,70 @@ def c2patool_inject(
         raise UnknownError(e.stderr) from e
 
 
+def create_assertion_asset_tree(
+    asset_tree_cid: Optional[str] = None,
+    asset_tree_sha256: Optional[str] = None,
+    asset_tree_signature: Optional[str] = None,
+    committer: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    if not asset_tree_cid or not asset_tree_sha256 or not asset_tree_signature or not committer:
+        return None
+
+    return {
+        'label': 'io.numbersprotocol.asset-tree',
+        'data': {
+            'assetTreeCid': asset_tree_cid,
+            'assetTreeSha256': asset_tree_sha256,
+            'assetTreeSignature': asset_tree_signature,
+            'committer': committer,
+        }
+    }
+
+
+def create_assertion_creative_work(
+    nid: str,
+    creator_name: str,
+    date_created: Optional[datetime] = None,
+    location_created: Optional[str] = None,
+):
+    data = {
+        '@context': 'https://schema.org',
+        '@type': 'CreativeWork',
+        'url': f'https://verify.numbersprotocol.io/asset-profile/{nid}',
+        'identifier': nid,
+    }
+    if creator_name:
+        data['author'] = [
+            {
+                '@type': 'Person',
+                'name': creator_name,
+            }
+        ]
+    if isinstance(date_created, datetime):
+        data['dateCreated'] = date_created.strftime('%Y-%m-%dT%H:%M:%SZ')
+    if location_created:
+        data['locationCreated'] = location_created
+
+    return {
+        'label': 'stds.schema-org.CreativeWork',
+        'data': data
+    }
+
+
 def create_c2pa_manifest(
     nid: str,
+    creator_name: str,
     creator_public_key: str,
     asset_hash: str,
-    date_created: datetime,
+    *,
+    date_created: Optional[datetime] = None,
     latitude: Optional[str] = None,
     longitude: Optional[str] = None,
     date_captured: Optional[datetime] = None,
     alg: str = 'es256',
     ta_url: str = 'http://timestamp.digicert.com',
     vendor: str = 'numbersprotocol',
-    claim_generator: str = 'Numbers_Protocol',
+    claim_generator_name: str = 'Numbers Protocol',
     digital_source_type: Optional[str] = None,
     generated_by: Optional[str] = None,
     asset_tree_cid: Optional[str] = None,
@@ -83,51 +153,34 @@ def create_c2pa_manifest(
         f'{format_geolocation(latitude)}, {format_geolocation(longitude)}'
         if latitude and longitude else None
     )
+
     manifest = {
         'alg': alg,
         'ta_url': ta_url,
         'vendor': vendor,
-        'claim_generator': claim_generator,
+        'claim_generator': format_claim_generator(claim_generator_name),
+        'claim_generator_info': [
+            {
+                'name': claim_generator_name,
+            },
+        ],
         'title': nid,
         'assertions': [
+            create_assertion_creative_work(
+                nid, creator_name, date_created, location_created,
+            ),
             {
-                'label': 'stds.schema-org.CreativeWork',
-                'data': {
-                    '@context': 'https://schema.org',
-                    '@type': 'CreativeWork',
-                    'url': f'https://verify.numbersprotocol.io/asset-profile/{nid}',
-                    'author': [
-                        {
-                            '@type': 'Person',
-                            'name': creator_public_key,
-                        }
-                    ],
-                    'dateCreated': date_created.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                    'locationCreated': location_created,
-                    'identifier': nid,
-                }
-            },
-            {
-                'label': 'c2pa.actions',
+                'label': 'c2pa.actions.v2',
                 'data': {
                     'actions': [
-                        {
-                            'action': 'c2pa.opened',
-                        }
+                        create_action_c2pa_opened(
+                            asset_hash, digital_source_type, generated_by,
+                        ),
                     ],
                 }
             },
             {
-                'label': 'numbers.assetTree',
-                'data': {
-                    'assetTreeCid': asset_tree_cid,
-                    'assetTreeSha256': asset_tree_sha256,
-                    'assetTreeSignature': asset_tree_signature,
-                    'committer': committer,
-                }
-            },
-            {
-                'label': 'numbers.integrity.json',
+                'label': 'io.numbersprotocol.integrity',
                 'data': {
                     'nid': nid,
                     'publicKey': creator_public_key,
@@ -155,18 +208,15 @@ def create_c2pa_manifest(
             },
         ]
     }
-    if digital_source_type:
-        manifest['assertions'][1]['data']['actions'][0].update({
-            'digitalSourceType': f'http://cv.iptc.org/newscodes/digitalsourcetype/{digital_source_type}',
-        })
-    if generated_by:
-        manifest['assertions'][1]['data']['actions'][0].update({
-            'softwareAgent': f'{generated_by}'
-        })
+    if assertion_asset_tree := create_assertion_asset_tree(
+        asset_tree_cid, asset_tree_sha256, asset_tree_signature, committer,
+    ):
+        manifest['assertions'].append(assertion_asset_tree)
     return manifest
 
 
 def create_custom_c2pa_manifest(
+    *,
     alg: str = 'es256',
     ta_url: str = 'http://timestamp.digicert.com',
     vendor: str = 'numbersprotocol',
@@ -219,10 +269,41 @@ def create_custom_c2pa_manifest(
     return manifest
 
 
+def create_action_c2pa_opened(
+    asset_hex_hash: str,
+    digital_source_type: Optional[str] = None,
+    software_agent: Optional[str] = None,
+) -> Dict[str, Any]:
+    base64_hash = base64.b64encode(binascii.unhexlify(asset_hex_hash)).decode()
+    action = {
+        'action': 'c2pa.opened',
+        'parameters': {
+            'ingredients': [
+                {
+                    'url': 'self#jumbf=c2pa.assertions/c2pa.ingredient',
+                    'alg': 'sha256',
+                    'hash': base64_hash,
+                },
+            ],
+        },
+    }
+    if digital_source_type:
+        action['digitalSourceType'] = (
+            'http://cv.iptc.org/newscodes/digitalsourcetype/'
+            f'{digital_source_type}'
+        )
+    if software_agent:
+        action['softwareAgent'] = {
+            'name': software_agent,
+        }
+    return action
+
+
 def inject(
     asset_bytes: bytes,
     asset_mime_type: str,
     manifest: Dict,
+    *,
     private_key: Optional[str] = None,
     sign_cert: Optional[str] = None,
     force_overwrite: bool = True,
@@ -258,6 +339,8 @@ def inject_file(
     asset_file: str,
     c2pa_output_file: str,
     manifest: Dict[str, Any],
+    *,
+    parent_path: Optional[str] = None,
     private_key: Optional[str] = None,
     sign_cert: Optional[str] = None,
     force_overwrite: bool = True,
@@ -290,6 +373,7 @@ def inject_file(
             manifest_file.name,
             c2pa_output_file,
             force_overwrite=force_overwrite,
+            parent_path=parent_path,
             private_key=private_key,
             sign_cert=sign_cert,
         )
