@@ -46,9 +46,9 @@ def format_geolocation(value: Optional[str], is_latitude: bool) -> Optional[str]
         return None
     d = Decimal(value)
     # Validate coordinate ranges - return None for invalid values to skip EXIF field
-    if is_latitude and not (-90 <= d <= 90):
+    if is_latitude and not -90 <= d <= 90:
         return None
-    if not is_latitude and not (-180 <= d <= 180):
+    if not is_latitude and not -180 <= d <= 180:
         return None
     degrees = int(abs(d))
     minutes = (abs(d) - degrees) * 60
