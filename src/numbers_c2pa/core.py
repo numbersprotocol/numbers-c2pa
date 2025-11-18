@@ -45,6 +45,11 @@ def format_geolocation(value: Optional[str], is_latitude: bool) -> Optional[str]
     if not value:
         return None
     d = Decimal(value)
+    # Validate coordinate ranges - return None for invalid values to skip EXIF field
+    if is_latitude and not (-90 <= d <= 90):
+        return None
+    if not is_latitude and not (-180 <= d <= 180):
+        return None
     degrees = int(abs(d))
     minutes = (abs(d) - degrees) * 60
     if is_latitude:
@@ -128,11 +133,13 @@ def create_assertion_metadata(
     }
     if isinstance(date_created, datetime):
         metadata['dc:date'] = date_created.strftime('%Y-%m-%dT%H:%M:%SZ')
-    if latitude:
-        metadata['exif:GPSLatitude'] = format_geolocation(latitude, True)
-    if longitude:
-        metadata['exif:GPSLongitude'] = format_geolocation(longitude, False)
-    if date_captured:
+    if latitude and longitude:
+        formatted_lat = format_geolocation(latitude, True)
+        formatted_lon = format_geolocation(longitude, False)
+        if formatted_lat and formatted_lon:
+            metadata['exif:GPSLatitude'] = formatted_lat
+            metadata['exif:GPSLongitude'] = formatted_lon
+    if isinstance(date_captured, datetime):
         metadata['exif:GPSTimeStamp'] = date_captured.strftime('%H:%M:%S')
         metadata['exif:DateTimeOriginal'] = date_captured.strftime('%Y:%m:%d %H:%M:%S')
 
@@ -218,8 +225,14 @@ def create_action_c2pa_opened(
     Args:
         asset_hex_hash: Hex-encoded SHA256 hash of the asset
         digital_source_type: Digital source type. Can be either:
-            - Short form: 'trainedAlgorithmicMedia' (IPTC namespace auto-prepended)
-            - Full URI: 'http://c2pa.org/digitalsourcetype/empty' (used as-is)
+            - Short form (e.g., 'trainedAlgorithmicMedia', 'digitalCapture', 'negativeFilm'):
+                The IPTC namespace 'http://cv.iptc.org/newscodes/digitalsourcetype/' will be prepended.
+                Example: 'trainedAlgorithmicMedia' → 'http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia'
+            - Full URI (starting with 'http://' or 'https://'):
+                Used as-is. Can be from any namespace (IPTC or C2PA).
+                Examples: 'http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture'
+                         'http://c2pa.org/digitalsourcetype/empty'
+            See IPTC NewsCodes: https://cv.iptc.org/newscodes/digitalsourcetype/
         software_agent: Name of the software that created/modified the asset
 
     Returns:
@@ -243,7 +256,7 @@ def create_action_c2pa_opened(
     }
     if digital_source_type:
         # If full URI provided, use as-is; otherwise prepend IPTC namespace
-        if digital_source_type.startswith('http://'):
+        if digital_source_type.startswith(('http://', 'https://')):
             action['digitalSourceType'] = digital_source_type
         else:
             action['digitalSourceType'] = (
