@@ -11,8 +11,33 @@ $ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 Install c2patool
 
+Download the prebuilt binary for your platform:
+
 ```bash
-$ cargo install c2patool
+# For macOS (Universal Binary - Apple Silicon & Intel)
+curl -L -o c2patool.zip https://github.com/contentauth/c2pa-rs/releases/download/c2patool-v0.26.1/c2patool-v0.26.1-universal-apple-darwin.zip
+unzip c2patool.zip
+chmod +x c2patool/c2patool
+cp c2patool/c2patool ~/.local/bin/  # or any directory in your PATH
+
+# For Linux
+curl -L -o c2patool.tar.gz https://github.com/contentauth/c2pa-rs/releases/download/c2patool-v0.26.1/c2patool-v0.26.1-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf c2patool.tar.gz
+chmod +x c2patool/c2patool
+cp c2patool/c2patool ~/.local/bin/
+
+# For Windows
+# Download: https://github.com/contentauth/c2pa-rs/releases/download/c2patool-v0.26.1/c2patool-v0.26.1-x86_64-pc-windows-msvc.zip
+# Extract and add c2patool.exe to your PATH
+
+# Verify installation
+c2patool --version  # Should show: c2patool 0.26.1
+```
+
+Alternatively, build from source (requires Rust):
+
+```bash
+$ cargo install c2patool --version 0.26.1
 ```
 
 Install numbers-c2pa
