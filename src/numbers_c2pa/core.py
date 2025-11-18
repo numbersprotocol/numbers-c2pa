@@ -227,7 +227,8 @@ def create_action_c2pa_opened(
         digital_source_type: Digital source type. Can be either:
             - Short form (e.g., 'trainedAlgorithmicMedia', 'digitalCapture', 'negativeFilm'):
                 The IPTC namespace 'http://cv.iptc.org/newscodes/digitalsourcetype/' will be prepended.
-                Example: 'trainedAlgorithmicMedia' → 'http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia'
+                Example: 'trainedAlgorithmicMedia' →
+                    'http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia'
             - Full URI (starting with 'http://' or 'https://'):
                 Used as-is. Can be from any namespace (IPTC or C2PA).
                 Examples: 'http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture'
