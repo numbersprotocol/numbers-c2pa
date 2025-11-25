@@ -21,6 +21,10 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
+    - name: Security Scan (Bandit)
+      run: |
+        python -m pip install bandit
+        bandit -r src -ll
     - name: Lint
       run: |
         make lint
